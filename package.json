@@ -1,6 +1,6 @@
 {
   "name": "@geomatico/i18n-linter",
-  "version": "0.0.2",
+  "version": "0.0.1",
   "description": "i18n linter for react-i18next projects, extending i18next-cli with static-key enforcement and empty-value detection",
   "type": "module",
   "engines": {
