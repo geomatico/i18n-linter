@@ -14,10 +14,11 @@
  *   i18n-linter [--write] [--locales <l1,l2>] [--src <dir>] [--output <pattern>]
  */
 import {existsSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync} from 'node:fs';
-import {basename, extname, join, resolve} from 'node:path';
+import {basename, dirname, extname, join, resolve} from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {tmpdir} from 'node:os';
 import {fileURLToPath} from 'node:url';
+import {createRequire} from 'node:module';
 
 const __filename = fileURLToPath(import.meta.url);
 const SRC_EXTENSIONS = new Set(['.js', '.jsx', '.ts', '.tsx']);
@@ -100,12 +101,15 @@ export async function runChecks({cwd, srcDir, src, output, write, locales}) {
   }
 
   // Checks 2–5: delegate to i18next-cli via a generated temp config
-  const cli = process.platform === 'win32' ? 'i18next-cli.cmd' : 'i18next-cli';
+  const _require = createRequire(import.meta.url);
+  const i18nextCliPkg = JSON.parse(readFileSync(_require.resolve('i18next-cli/package.json'), 'utf8'));
+  const binRelPath = typeof i18nextCliPkg.bin === 'string' ? i18nextCliPkg.bin : Object.values(i18nextCliPkg.bin)[0];
+  const cliBin = join(dirname(_require.resolve('i18next-cli/package.json')), binRelPath);
   const {dir, configPath} = writeTempConfig({cwd, src, output, locales});
   try {
-    const args = ['--config', configPath, ...(write ? ['extract'] : ['extract', '--ci', '--dry-run'])];
+    const args = [cliBin, '--config', configPath, ...(write ? ['extract'] : ['extract', '--ci', '--dry-run'])];
     console.error('\nBundle sync check (+ missing in bundle, - unused in bundle):');
-    const {status} = spawnSync(cli, args, {stdio: 'inherit', cwd});
+    const {status} = spawnSync(process.execPath, args, {stdio: 'inherit', cwd});
     if (status !== 0) {
       if (!write)
         console.error('\nRun with --write to auto-fix missing/unused keys and sorting.');
